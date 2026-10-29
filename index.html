@@ -461,7 +461,6 @@
     poki: "https:" + "//poki.com/",
     dash: "https:" + "//garbsoftball.com/"
   };
-  const embedPassword = "mariopro171213";
   const overlay = document.getElementById("game-embed-overlay");
   const frame = document.getElementById("game-embed-frame");
   let typed = "";
@@ -473,7 +472,7 @@
     typed = "";
   }
 
-  document.addEventListener("keydown", async (event) => {
+  document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && overlay.style.display === "block") {
       closeEmbed();
       return;
@@ -490,23 +489,15 @@
     for (const [word, url] of Object.entries(shortcuts)) {
       if (typed.endsWith(word)) {
         typed = "";
-        const entered = window.prompt("Introduce la contraseña para abrir este embed:");
-        if (entered === embedPassword) {
-          if (typeof window.ensureFictionAccess !== "function") {
-            window.alert("El sistema de acceso todavía está cargando. Recarga la página e inténtalo de nuevo.");
-            return;
-          }
-          const accessAllowed = await window.ensureFictionAccess();
-          if (accessAllowed) {
-            frame.src = url;
-            overlay.style.display = "block";
-            overlay.setAttribute("aria-hidden", "false");
-          } else {
-            window.alert("Todavía no tienes acceso autorizado. Inicia sesión y revisa el estado de tu espera.");
-          }
-        } else if (entered !== null) {
-          window.alert("Contraseña incorrecta. No se abrió el embed.");
+        if (typeof window.requestFictionAccess !== "function") {
+          window.alert("El formulario de acceso todavía está cargando. Recarga la página e inténtalo de nuevo.");
+          return;
         }
+        window.requestFictionAccess(() => {
+          frame.src = url;
+          overlay.style.display = "block";
+          overlay.setAttribute("aria-hidden", "false");
+        });
         return;
       }
     }

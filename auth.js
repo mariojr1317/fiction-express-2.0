@@ -13,7 +13,7 @@ style.textContent = `
 #fx-auth-card input{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border:1px solid #bbb;border-radius:8px;font-size:16px}
 #fx-auth-card button{padding:11px 14px;border:0;border-radius:8px;cursor:pointer;font-weight:600;margin:5px 5px 0 0}
 #fx-auth-login{background:#1459c7;color:#fff} #fx-auth-signup{background:#e8eef9;color:#172d52}
-#fx-auth-cancel{background:#eee;color:#222}
+#fx-auth-continue{background:#16803c;color:#fff} #fx-auth-cancel{background:#eee;color:#222}
 #fx-auth-status{font-size:14px;white-space:pre-wrap;color:#333;margin-top:12px}
 #fx-auth-user{position:fixed;z-index:2147483645;bottom:10px;right:10px;background:#fff;color:#222;border:1px solid #ccc;border-radius:9px;padding:8px 10px;font:12px Arial,sans-serif;box-shadow:0 2px 10px #0002;display:none}
 #fx-auth-user button{margin-left:8px}
@@ -31,6 +31,7 @@ panel.innerHTML = `
 <input id="fx-auth-password" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6 caracteres)" minlength="6" required>
 <button id="fx-auth-login" type="submit">Iniciar sesión</button>
 <button id="fx-auth-signup" type="button">Crear cuenta</button>
+<button id="fx-auth-continue" type="button" style="display:none">Continuar al sitio</button>
 <button id="fx-auth-cancel" type="button">Cancelar</button>
 </form>
 <div id="fx-auth-status" aria-live="polite"></div>
@@ -53,6 +54,9 @@ let checking = false;
 function setStatus(message) { statusEl.textContent = message || ""; }
 function showPanel(message = "") { setStatus(message); panel.style.display = "flex"; }
 function hidePanel() { panel.style.display = "none"; }
+function showContinue(show) {
+  document.getElementById("fx-auth-continue").style.display = show ? "inline-block" : "none";
+}
 function updateChip(session) {
   chip.style.display = session ? "block" : "none";
   if (session) document.getElementById("fx-auth-user-label").textContent = session.user.email || "Sesión activa";
@@ -85,7 +89,6 @@ async function checkAccess() {
     }
     if (data.role === "admin" || data.access_granted === true) {
       setStatus(data.role === "admin" ? "Acceso de administrador autorizado." : "¡Acceso autorizado!");
-      openPending();
       return true;
     }
     const start = data.wait_started_at ? new Date(data.wait_started_at) : new Date();
@@ -109,6 +112,7 @@ function startHeartbeat() {
 
 window.requestFictionAccess = async function (openAction) {
   pendingOpen = openAction;
+  showContinue(false);
   showPanel("Comprobando tu cuenta…");
   const { data } = await supabase.auth.getSession();
   if (!data.session) {
@@ -117,7 +121,13 @@ window.requestFictionAccess = async function (openAction) {
     return;
   }
   const allowed = await checkAccess();
-  if (!allowed) showPanel(statusEl.textContent);
+  if (allowed) {
+    showPanel(statusEl.textContent + "\\nPulsa «Continuar al sitio» para abrirlo.");
+    showContinue(true);
+  } else {
+    showPanel(statusEl.textContent);
+    showContinue(false);
+  }
 };
 
 form.addEventListener("submit", async event => {
@@ -134,7 +144,24 @@ form.addEventListener("submit", async event => {
   updateChip(data.session);
   startHeartbeat();
   const allowed = await checkAccess();
-  if (!allowed) showPanel(statusEl.textContent);
+  if (allowed) {
+    showPanel(statusEl.textContent + "\\nPulsa «Continuar al sitio» para abrirlo.");
+    showContinue(true);
+  } else {
+    showPanel(statusEl.textContent);
+    showContinue(false);
+  }
+});
+
+document.getElementById("fx-auth-continue").addEventListener("click", async () => {
+  showContinue(false);
+  const allowed = await checkAccess();
+  if (allowed) {
+    openPending();
+  } else {
+    setStatus(statusEl.textContent);
+    showContinue(false);
+  }
 });
 
 document.getElementById("fx-auth-signup").addEventListener("click", async () => {
@@ -155,11 +182,18 @@ document.getElementById("fx-auth-signup").addEventListener("click", async () => 
   updateChip(data.session);
   startHeartbeat();
   const allowed = await checkAccess();
-  if (!allowed) showPanel(statusEl.textContent);
+  if (allowed) {
+    showPanel(statusEl.textContent + "\\nPulsa «Continuar al sitio» para abrirlo.");
+    showContinue(true);
+  } else {
+    showPanel(statusEl.textContent);
+    showContinue(false);
+  }
 });
 
 document.getElementById("fx-auth-cancel").addEventListener("click", () => {
   pendingOpen = null;
+  showContinue(false);
   hidePanel();
 });
 document.getElementById("fx-auth-logout").addEventListener("click", async () => {
